@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 
 @dataclass
-class DataPipelineItem:
+class CrawlItem:
     # define the fields for your item here like:
     # name: str | None = None
     pass
