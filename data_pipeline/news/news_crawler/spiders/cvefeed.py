@@ -3,7 +3,7 @@ from html import unescape
 import scrapy
 from urllib.parse import urlparse
 
-from data_pipeline.utils import CVE_PATTERN
+from data_pipeline.constants.cve import CVE_PATTERN
 
 class CveFeedSpider(scrapy.Spider):
     # CVE Feed: RSS Feed
