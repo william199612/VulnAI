@@ -21,7 +21,7 @@ class CveNewsPipeline:
     def close_spider(self, spider):
         self.session.close()
 
-    def process_item(self, item):
+    def process_item(self, item, spider):
 
         stmt = insert(CVENews).values(
             url=item.get("url"),
