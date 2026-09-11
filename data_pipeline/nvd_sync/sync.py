@@ -1,9 +1,10 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from sqlalchemy.dialects.postgresql import insert
 
 from data_pipeline.shared.db import SessionLocal
 
 from data_pipeline.models import CVE, SyncState
+from data_pipeline.schemas.cve import NVDParamsSchema
 
 from data_pipeline.nvd_sync.client import fetch_cve_page
 from data_pipeline.nvd_sync.config import *
@@ -82,9 +83,11 @@ def run_full_sync(results_per_page=200, max_pages=None):
 
     try:
         while True:
-            data = fetch_cve_page(
-                start_index=start_index, results_per_page=results_per_page
+            params = NVDParamsSchema(
+                start_index=start_index,
+                results_per_page=results_per_page
             )
+            data = fetch_cve_page(params)
             vulnerabilities = data.get("vulnerabilities", [])
             if not vulnerabilities:
                 break
@@ -119,11 +122,13 @@ def run_incremental_sync():
 
         start_index = 0
         while True:
-            data = fetch_cve_page(
+            params = NVDParamsSchema(
                 start_index=start_index,
-                last_mod_start=since.strftime("%Y-%m-%dT%H:%M:%S.000"),
-                last_mod_end=now.strftime("%Y-%m-%dT%H:%M:%S.000"),
+                results_per_page=200,
+                last_mod_start_date=since.strftime("%Y-%m-%dT%H:%M:%S.000"),
+                last_mod_end_date=now.strftime("%Y-%m-%dT%H:%M:%S.000"),
             )
+            data = fetch_cve_page(params)
             vulnerabilities = data.get("vulnerabilities", [])
             if not vulnerabilities:
                 break
@@ -136,5 +141,37 @@ def run_incremental_sync():
         _set_last_synced(
             session, now
         )  # only advance checkpoint after a full successful pass
+    finally:
+        session.close()
+
+
+def run_seed_sync(years_back=1, results_per_page=200):
+    """One-time bounded initial load — recent CVEs only, not full NVD history."""
+    session = SessionLocal()
+    now = datetime.now(timezone.utc)
+    start_date = now - timedelta(days=365 * years_back)
+    start_index = 0
+
+    try:
+        while True:
+            params = NVDParamsSchema(
+                start_index=start_index,
+                results_per_page=results_per_page,
+                pub_start_date=start_date.strftime("%Y-%m-%dT%H:%M:%S.000"),
+                pub_end_date=now.strftime("%Y-%m-%dT%H:%M:%S.000"),
+            )
+            data = fetch_cve_page(params)
+            vulnerabilities = data.get("vulnerabilities", [])
+            if not vulnerabilities:
+                break
+
+            _upsert_batch(session, vulnerabilities)
+            total = data.get("totalResults", 0)
+            print(f"Synced {len(vulnerabilities)} CVEs (start_index={start_index}/{total})")
+
+            start_index += results_per_page
+            if start_index >= total:
+                break
+        _set_last_synced(session, now)
     finally:
         session.close()
