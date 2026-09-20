@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS cve_news (
     content        TEXT,
     crawl_method   TEXT CHECK (crawl_method IN ('static', 'dynamic')),
     fetched_at     TIMESTAMPTZ DEFAULT now()
+    updated_at     TIMESTAMPTZ DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS cve_news_link (

@@ -34,7 +34,7 @@ TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
 # Configure item pipelines
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
-    "data_pipeline.pipelines.CveNewsPipeline": 300,
+    "data_pipeline.news.news_crawler.pipelines.CveNewsPipeline": 300,
 }
 
 # Set settings whose default value is deprecated to a future-proof value
