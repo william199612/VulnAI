@@ -1,8 +1,8 @@
 """init schema
 
-Revision ID: 91acc4eaed00
+Revision ID: 3f14807f3ed2
 Revises: 
-Create Date: 2026-08-15 17:24:44.984562
+Create Date: 2026-09-21 16:47:06.523243
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '91acc4eaed00'
+revision: str = '3f14807f3ed2'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -32,18 +32,19 @@ def upgrade() -> None:
     sa.Column('modified_date', sa.DateTime(timezone=True), nullable=True),
     sa.Column('source', sa.String(), nullable=True),
     sa.Column('raw_references', sa.JSON(), nullable=True),
-    sa.Column('fetched_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
+    sa.Column('fetched_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.PrimaryKeyConstraint('cve_id')
     )
     op.create_table('cve_news',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('url', sa.String(), nullable=False),
-    sa.Column('title', sa.String(), nullable=True),
-    sa.Column('source_domain', sa.String(), nullable=True),
-    sa.Column('published_at', sa.DateTime(timezone=True), nullable=True),
-    sa.Column('content', sa.String(), nullable=True),
-    sa.Column('crawl_method', sa.String(), nullable=True),
-    sa.Column('fetched_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
+    sa.Column('title', sa.String(), nullable=False),
+    sa.Column('source_domain', sa.String(), nullable=False),
+    sa.Column('published_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('content', sa.String(), nullable=False),
+    sa.Column('crawl_method', sa.String(), nullable=False),
+    sa.Column('fetched_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('url')
     )

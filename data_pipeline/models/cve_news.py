@@ -1,16 +1,23 @@
-from sqlalchemy import Column, Integer, String, DateTime, func
+from sqlalchemy import Integer, String, DateTime, func
+from sqlalchemy.orm import Mapped, mapped_column
 from data_pipeline.shared.db import Base
 
 
 class CVENews(Base):
     __tablename__ = "cve_news"
 
-    id = Column(Integer, primary_key=True)
-    url = Column(String, unique=True, nullable=False)
-    title = Column(String)
-    source_domain = Column(String)
-    published_at = Column(DateTime(timezone=True))
-    content = Column(String)
-    crawl_method = Column(String)  # 'static' or 'dynamic'
-    fetched_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    url: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    title: Mapped[str] = mapped_column(String)
+    source_domain: Mapped[str] = mapped_column(String)
+    published_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True))
+    content: Mapped[str] = mapped_column(String)
+    crawl_method: Mapped[str] = mapped_column(String)
+    fetched_at: Mapped[DateTime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+    )
+    updated_at: Mapped[DateTime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+    )
