@@ -2,12 +2,15 @@ from datetime import datetime, timezone, timedelta
 from sqlalchemy.dialects.postgresql import insert
 
 from data_pipeline.shared.db import SessionLocal
+from data_pipeline.shared.logging import get_logger
 
 from data_pipeline.models import CVE, SyncState
 from data_pipeline.schemas.cve import NVDParamsSchema
 
 from data_pipeline.nvd_sync.client import fetch_cve_page
 from data_pipeline.nvd_sync.config import *
+
+logger = get_logger("nvd_sync", "nvd_sync.log")
 
 
 def _extract_cvss(metrics):
@@ -84,8 +87,7 @@ def run_full_sync(results_per_page=200, max_pages=None):
     try:
         while True:
             params = NVDParamsSchema(
-                start_index=start_index,
-                results_per_page=results_per_page
+                start_index=start_index, results_per_page=results_per_page
             )
             data = fetch_cve_page(params)
             vulnerabilities = data.get("vulnerabilities", [])
@@ -93,7 +95,9 @@ def run_full_sync(results_per_page=200, max_pages=None):
                 break
 
             _upsert_batch(session, vulnerabilities)
-            print(f"Synced {len(vulnerabilities)} CVEs (start_index={start_index})")
+            logger.info(
+                f"Synced {len(vulnerabilities)} CVEs (start_index={start_index})"
+            )
 
             start_index += results_per_page
             page += 1
@@ -113,7 +117,7 @@ def run_incremental_sync():
 
         if since is None:
             # first run ever — no checkpoint yet, fall back to full sync
-            print("No previous sync found, running full sync instead")
+            logger.info("No previous sync found, running full sync instead")
             session.close()
             run_full_sync()
             session = SessionLocal()
@@ -167,7 +171,9 @@ def run_seed_sync(years_back=1, results_per_page=200):
 
             _upsert_batch(session, vulnerabilities)
             total = data.get("totalResults", 0)
-            print(f"Synced {len(vulnerabilities)} CVEs (start_index={start_index}/{total})")
+            logger.info(
+                f"Synced {len(vulnerabilities)} CVEs (start_index={start_index}/{total})"
+            )
 
             start_index += results_per_page
             if start_index >= total:

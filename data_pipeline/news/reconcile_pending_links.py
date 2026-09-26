@@ -3,9 +3,12 @@ from sqlalchemy import text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from data_pipeline.shared.db import SessionLocal
+from data_pipeline.shared.logging import get_logger
 from data_pipeline.models import CVENewsLink
 from data_pipeline.nvd_sync.client import fetch_cve_by_id
 from data_pipeline.nvd_sync.sync import _upsert_batch
+
+logger = get_logger("reconcile_pending_links", "reconcile_pending_links.log")
 
 
 def reconcile_pending_links(max_fetches_per_run=100):
