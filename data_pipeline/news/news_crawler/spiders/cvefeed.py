@@ -5,12 +5,13 @@ from urllib.parse import urlparse
 
 from data_pipeline.constants.cve import CVE_PATTERN
 
+
 class CveFeedSpider(scrapy.Spider):
     # CVE Feed: RSS Feed
     name = "cvefeed"
     allowed_domains = ["cvefeed.io"]
     start_urls = ["https://cvefeed.io/rssfeed/newsroom.xml"]
-    
+
     def parse(self, response):
         response.selector.remove_namespaces()
         items = response.xpath("//item")
@@ -25,7 +26,8 @@ class CveFeedSpider(scrapy.Spider):
             if not link:
                 continue
 
-            cve_ids = sorted(set(CVE_PATTERN.findall(description_html)))
+            text = unescape(description_html)
+            cve_ids = sorted(set(m.upper() for m in CVE_PATTERN.findall(text or "")))
             if not cve_ids:
                 self.log(f"Skipping (no CVE tagged): {title}")
                 continue

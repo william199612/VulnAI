@@ -14,8 +14,8 @@ def reconcile_pending_links(max_fetches_per_run=100):
         pending_cve_ids = (
             session.execute(
                 text("""
-            SELECT DISTINCT cve_id FROM pending_cve_news_link LIMIT :limit
-        """),
+                    SELECT DISTINCT cve_id FROM pending_cve_news_link LIMIT :limit
+                """),
                 {"limit": max_fetches_per_run},
             )
             .scalars()
@@ -24,7 +24,12 @@ def reconcile_pending_links(max_fetches_per_run=100):
 
         resolved_count = 0
         for cve_id in pending_cve_ids:
-            data = fetch_cve_by_id(cve_id)
+            try:
+                data = fetch_cve_by_id(cve_id)
+            except Exception as e:
+                print(f"Error fetching CVE {cve_id}: {e}")
+                continue
+
             time.sleep(0.7)
             vulns = data.get("vulnerabilities", [])
             if not vulns:
@@ -35,8 +40,8 @@ def reconcile_pending_links(max_fetches_per_run=100):
             affected_news_ids = (
                 session.execute(
                     text("""
-                SELECT cve_news_id FROM pending_cve_news_link WHERE cve_id = :cid
-            """),
+                        SELECT cve_news_id FROM pending_cve_news_link WHERE cve_id = :cid
+                    """),
                     {"cid": cve_id},
                 )
                 .scalars()
@@ -53,8 +58,8 @@ def reconcile_pending_links(max_fetches_per_run=100):
 
             session.execute(
                 text("""
-                DELETE FROM pending_cve_news_link WHERE cve_id = :cid
-            """),
+                    DELETE FROM pending_cve_news_link WHERE cve_id = :cid
+                """),
                 {"cid": cve_id},
             )
 
