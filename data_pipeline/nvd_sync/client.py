@@ -2,7 +2,7 @@ import os
 
 from data_pipeline.utils.api_client import fetch_json
 from data_pipeline.schemas.cve import NVDParamsSchema
-from data_pipeline.constants.cve import CVE_PATTERN
+from data_pipeline.constants import CVE_PATTERN
 
 from .config import NVD_BASE, NVD_API_KEY
 
