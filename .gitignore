@@ -8,3 +8,6 @@ __pycache__/
 
 # scrapy test json output
 test_output/
+
+# logs
+logs/

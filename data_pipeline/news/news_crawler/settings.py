@@ -2,6 +2,7 @@
 
 import sys
 from pathlib import Path
+from datetime import datetime
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
@@ -9,6 +10,13 @@ BOT_NAME = "news_crawler"
 
 SPIDER_MODULES = ["news_crawler.spiders"]
 NEWSPIDER_MODULE = "news_crawler.spiders"
+
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+LOG_DIR = PROJECT_ROOT / "logs"
+LOG_DIR.mkdir(exist_ok=True)
+
+LOG_FILE = str(LOG_DIR / f"news_crawl_{datetime.now():%Y%m%d}.log")
+LOG_LEVEL = "INFO"
 
 ADDONS = {}
 
