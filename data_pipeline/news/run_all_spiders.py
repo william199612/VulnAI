@@ -1,8 +1,10 @@
+import os
 import yaml
 from pathlib import Path
 from scrapy.crawler import CrawlerProcess
 from scrapy.utils.project import get_project_settings
 
+NEWS_DIR = Path(__file__).resolve().parent
 SOURCES_FILE = Path(__file__).resolve().parent / "sources.yaml"
 
 
@@ -13,6 +15,7 @@ def load_enabled_spiders():
 
 
 def main():
+    os.chdir(NEWS_DIR)
     spider_names = load_enabled_spiders()
     print(f"Running spiders: {spider_names}")
 
