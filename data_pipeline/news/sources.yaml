@@ -1,0 +1,9 @@
+sources:
+  - name: cvefeed
+    enabled: true
+
+  - name: zdi_published
+    enabled: true
+
+  - name: github_security_advisories
+    enabled: true

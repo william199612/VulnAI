@@ -1,2 +1,13 @@
 # Environment
 .env
+.venv/
+
+# Python Cache
+__pycache__/
+*.pyc
+
+# scrapy test json output
+test_output/
+
+# logs
+logs/
