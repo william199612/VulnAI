@@ -1,7 +1,7 @@
 services:
   postgres:
-    image: postgres:16
-    container_name: vulnai-postgres
+    image: pgvector/pgvector:pg16
+    container_name: vulnai-pgvector
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
