@@ -9,6 +9,11 @@ from data_pipeline.shared.logging import get_logger
 from data_pipeline.nvd_sync.sync import run_incremental_sync
 from data_pipeline.news.reconcile_pending_links import reconcile_pending_links
 
+from data_pipeline.rag.backfill_embeddings import (
+    backfill_cve_embeddings,
+    backfill_news_embeddings,
+)
+
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 NEWS_DIR = PROJECT_ROOT / "data_pipeline" / "news"
 
@@ -46,6 +51,9 @@ scheduler.add_job(run_news_crawl, "interval", minutes=30, id="news_crawl")
 scheduler.add_job(reconcile_pending_links, "interval", minutes=35, id="reconcile_links")
 # reconcile runs 5 min after news_crawl on the same cadence, so it's usually working
 # with freshly-crawled pending links rather than racing the crawl itself
+
+scheduler.add_job(backfill_cve_embeddings, "interval", hours=6, id="embed_cve")
+scheduler.add_job(backfill_news_embeddings, "interval", minutes=35, id="embed_news")
 
 if __name__ == "__main__":
     scheduler.start()
