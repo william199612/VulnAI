@@ -21,5 +21,7 @@ def build_cve_embedding_text(cve: CVE) -> str:
 
 
 def build_news_embedding_text(news: CVENews) -> str:
-    parts = [news.title or "", news.content or ""]
-    return _finalize("\n".join(p.strip() for p in parts if p and p.strip()))
+    title = (news.title or "").strip()
+    body = (news.content or "").strip()[:MAX_EMBEDDING_CHARS]
+    parts = [p for p in (title, body) if p]
+    return _finalize("\n".join(parts))
