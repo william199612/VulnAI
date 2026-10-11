@@ -1,5 +1,5 @@
 services:
-  postgres:
+  pgvector:
     image: pgvector/pgvector:pg16
     container_name: vulnai-pgvector
     restart: unless-stopped
@@ -24,7 +24,7 @@ services:
     ports:
       - "${PGADMIN_PORT}:5050"
     depends_on:
-      - postgres
+      - pgvector
     volumes:
       - vulnai_pgadmin_data:/var/lib/pgadmin
 

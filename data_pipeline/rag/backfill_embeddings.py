@@ -99,3 +99,8 @@ def backfill_cve_embeddings():
 
 def backfill_news_embeddings():
     return _backfill(CVENews, CVENews.id, build_news_embedding_text, "cve_news")
+
+
+if __name__ == "__main__":
+    backfill_cve_embeddings()
+    backfill_news_embeddings()

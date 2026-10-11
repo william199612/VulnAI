@@ -10,7 +10,62 @@ from data_pipeline.schemas.cve import NVDParamsSchema
 from data_pipeline.nvd_sync.client import fetch_cve_page
 from data_pipeline.nvd_sync.config import *
 
+MAX_WINDOW_DAYS = 119
 logger = get_logger("nvd_sync", "nvd_sync.log")
+
+
+def _date_windows(start: datetime, end: datetime, days: int = MAX_WINDOW_DAYS):
+    """Split [start, end] into consecutive windows of at most `days` days."""
+    cur = start
+    while cur < end:
+        nxt = min(cur + timedelta(days=days), end)
+        yield cur, nxt
+        cur = nxt
+
+
+def _fmt(dt: datetime) -> str:
+    return dt.strftime("%Y-%m-%dT%H:%M:%S.000")
+
+
+def _sync_range(
+    session, start, end, *, date_field, results_per_page=200, max_pages=None
+):
+    """Fetch every CVE in [start, end], one <=119-day window at a time.
+
+    date_field is "pub" (seed: by publish date) or "last_mod" (incremental).
+    Returns True if it finished, False if it stopped early because of max_pages.
+    """
+    pages = 0
+    for w_start, w_end in _date_windows(start, end):
+        start_index = 0
+        while True:
+            params = NVDParamsSchema(
+                startIndex=start_index,
+                resultsPerPage=results_per_page,
+                **{
+                    f"{date_field}StartDate": _fmt(w_start),
+                    f"{date_field}EndDate": _fmt(w_end),
+                },
+            )
+            data = fetch_cve_page(params)
+            vulns = data.get("vulnerabilities", [])
+            if not vulns:
+                break
+
+            _upsert_batch(session, vulns)  # commits internally
+            total = data.get("totalResults", 0)
+            logger.info(
+                f"[{date_field} {w_start:%Y-%m-%d}..{w_end:%Y-%m-%d}] "
+                f"synced {len(vulns)} CVEs (start_index={start_index}/{total})"
+            )
+
+            pages += 1
+            start_index += results_per_page
+            if start_index >= total:
+                break
+            if max_pages and pages >= max_pages:
+                return False
+    return True
 
 
 def _extract_cvss(metrics):
@@ -87,7 +142,7 @@ def run_full_sync(results_per_page=200, max_pages=None):
     try:
         while True:
             params = NVDParamsSchema(
-                start_index=start_index, results_per_page=results_per_page
+                startIndex=start_index, resultsPerPage=results_per_page
             )
             data = fetch_cve_page(params)
             vulnerabilities = data.get("vulnerabilities", [])
@@ -109,75 +164,37 @@ def run_full_sync(results_per_page=200, max_pages=None):
         session.close()
 
 
-def run_incremental_sync():
-    session = SessionLocal()
-    try:
+def run_incremental_sync(max_pages: int | None = None):
+    with SessionLocal() as session:
         since = _get_last_synced(session)
-        now = datetime.now(timezone.utc)
-
         if since is None:
-            # first run ever — no checkpoint yet, fall back to full sync
-            logger.info("No previous sync found, running full sync instead")
-            session.close()
-            run_full_sync()
-            session = SessionLocal()
-            _set_last_synced(session, now)
+            logger.error("No sync checkpoint found. Run `seed` first.")
             return
 
-        start_index = 0
-        while True:
-            params = NVDParamsSchema(
-                start_index=start_index,
-                results_per_page=200,
-                last_mod_start_date=since.strftime("%Y-%m-%dT%H:%M:%S.000"),
-                last_mod_end_date=now.strftime("%Y-%m-%dT%H:%M:%S.000"),
-            )
-            data = fetch_cve_page(params)
-            vulnerabilities = data.get("vulnerabilities", [])
-            if not vulnerabilities:
-                break
-
-            _upsert_batch(session, vulnerabilities)
-            start_index += 200
-            if start_index >= data.get("totalResults", 0):
-                break
-
-        _set_last_synced(
-            session, now
-        )  # only advance checkpoint after a full successful pass
-    finally:
-        session.close()
+        now = datetime.now(timezone.utc)  # taken before fetching, so nothing is missed
+        done = _sync_range(
+            session, since, now, date_field="last_mod", max_pages=max_pages
+        )
+        if done:
+            _set_last_synced(session, now)
+        else:
+            logger.info(f"stopped at max_pages={max_pages}, checkpoint NOT advanced")
 
 
-def run_seed_sync(years_back=1, results_per_page=200):
+def run_seed_sync(years_back=1, results_per_page=200, max_pages=None):
     """One-time bounded initial load — recent CVEs only, not full NVD history."""
-    session = SessionLocal()
     now = datetime.now(timezone.utc)
-    start_date = now - timedelta(days=365 * years_back)
-    start_index = 0
-
-    try:
-        while True:
-            params = NVDParamsSchema(
-                start_index=start_index,
-                results_per_page=results_per_page,
-                pub_start_date=start_date.strftime("%Y-%m-%dT%H:%M:%S.000"),
-                pub_end_date=now.strftime("%Y-%m-%dT%H:%M:%S.000"),
-            )
-            data = fetch_cve_page(params)
-            vulnerabilities = data.get("vulnerabilities", [])
-            if not vulnerabilities:
-                break
-
-            _upsert_batch(session, vulnerabilities)
-            total = data.get("totalResults", 0)
-            logger.info(
-                f"Synced {len(vulnerabilities)} CVEs (start_index={start_index}/{total})"
-            )
-
-            start_index += results_per_page
-            if start_index >= total:
-                break
-        _set_last_synced(session, now)
-    finally:
-        session.close()
+    start = now - timedelta(days=365 * years_back)
+    with SessionLocal() as session:
+        done = _sync_range(
+            session,
+            start,
+            now,
+            date_field="pub",
+            results_per_page=results_per_page,
+            max_pages=max_pages,
+        )
+        if done:
+            _set_last_synced(session, now)
+        else:
+            logger.info(f"stopped at max_pages={max_pages}, checkpoint NOT advanced")

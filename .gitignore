@@ -11,3 +11,7 @@ test_output/
 
 # logs
 logs/
+
+# sample output
+*sample*
+*test*
