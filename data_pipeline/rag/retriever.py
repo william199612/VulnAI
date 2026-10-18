@@ -21,6 +21,7 @@ def retrieve_cves(
     query: str,
     top_k: int = TOP_K_DEFAULT,
     *,
+    exact_ids: list[str] = None,
     min_cvss: float | None = None,
     published_after: datetime | None = None,
     query_embedding: list[float] | None = None,
@@ -33,7 +34,7 @@ def retrieve_cves(
     filled by cosine similarity on cve.embedding.
     """
     qvec = query_embedding if query_embedding is not None else embed_query(query)
-    exact_ids = _extract_cve_ids(query)
+    exact_ids = exact_ids if exact_ids is not None else _extract_cve_ids(query)
 
     with SessionLocal() as session:
         hits: list[CVEHit] = []
@@ -89,6 +90,7 @@ def retrieve_news(
     query: str,
     top_k: int = 5,
     *,
+    exact_ids: list[str] = None,
     published_after: datetime | None = None,
     query_embedding: list[float] | None = None,
 ) -> list[NewsHit]:
@@ -99,7 +101,7 @@ def retrieve_news(
     cve_news_link come first. The rest is cosine similarity on cve_news.embedding.
     """
     qvec = query_embedding if query_embedding is not None else embed_query(query)
-    exact_ids = _extract_cve_ids(query)
+    exact_ids = exact_ids if exact_ids is not None else _extract_cve_ids(query)
 
     def to_hit(row: CVENews, similarity: float, exact: bool) -> NewsHit:
         return NewsHit(
@@ -154,15 +156,30 @@ def retrieve(
 ) -> dict:
     """Embed the question once and search both tables."""
     qvec = embed_query(query)
-    return {
-        "cves": retrieve_cves(
-            query,
-            top_k_cves,
-            query_embedding=qvec,
-            published_after=published_after,
-            min_cvss=min_cvss,
-        ),
-        "news": retrieve_news(
-            query, top_k_news, query_embedding=qvec, published_after=published_after
-        ),
-    }
+    exact_ids = _extract_cve_ids(query)
+
+    cves = retrieve_cves(
+        query,
+        top_k_cves,
+        exact_ids=exact_ids,
+        query_embedding=qvec,
+        published_after=published_after,
+        min_cvss=min_cvss,
+    )
+    news = retrieve_news(
+        query,
+        top_k_news,
+        exact_ids=exact_ids,
+        query_embedding=qvec,
+        published_after=published_after,
+    )
+
+    # A named CVE that exists locally: return only it and its linked news,
+    # instead of padding the answer with unrelated semantic matches.
+    if exact_ids:
+        exact_cves = [h for h in cves if h.exact_match]
+        if exact_cves:
+            cves = exact_cves
+            news = [h for h in news if h.exact_match]
+
+    return {"cves": cves, "news": news}
