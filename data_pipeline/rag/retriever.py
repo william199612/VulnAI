@@ -144,10 +144,25 @@ def retrieve_news(
         return hits[: max(top_k, len(seen))]
 
 
-def retrieve(query: str, top_k_cves: int = 5, top_k_news: int = 5) -> dict:
+def retrieve(
+    query: str,
+    top_k_cves: int = 5,
+    top_k_news: int = 5,
+    *,
+    published_after=None,
+    min_cvss=None,
+) -> dict:
     """Embed the question once and search both tables."""
     qvec = embed_query(query)
     return {
-        "cves": retrieve_cves(query, top_k_cves, query_embedding=qvec),
-        "news": retrieve_news(query, top_k_news, query_embedding=qvec),
+        "cves": retrieve_cves(
+            query,
+            top_k_cves,
+            query_embedding=qvec,
+            published_after=published_after,
+            min_cvss=min_cvss,
+        ),
+        "news": retrieve_news(
+            query, top_k_news, query_embedding=qvec, published_after=published_after
+        ),
     }
