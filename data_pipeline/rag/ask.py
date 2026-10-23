@@ -20,7 +20,7 @@ def main():
         mark = "*" if s["tag"] in a.cited else " "
         print(f" {mark} [{s['tag']}] {s['type']:4} {s['id'][:70]}  {s['url']}")
     if a.invalid_citations:
-        print(f"\nWARNING: cited tags that do not exist: {a.invalid_citations}")
+        print(f"WARNING: invalid tags: {a.invalid_citations}")
     if a.uncited:
         print(f"WARNING: {len(a.uncited)} item(s) without a citation:")
         for b in a.uncited:

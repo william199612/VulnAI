@@ -1,7 +1,10 @@
 import os
+import re
 from dotenv import load_dotenv
 
 load_dotenv()
+
+TAG_RE = re.compile(r"\[S(\d+)\]")
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 EMBEDDING_MODEL = "text-embedding-3-small"

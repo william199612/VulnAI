@@ -8,6 +8,7 @@ from data_pipeline.rag.config import (
     NEWS_SNIPPET_CHARS,
     TEMPERATURE,
     MAX_REFERENCES,
+    TAG_RE,
 )
 from data_pipeline.rag.embeddings import get_client
 from data_pipeline.rag.retriever import retrieve
@@ -85,7 +86,7 @@ def _extract_citations(text: str) -> List[str]:
     return tags
 
 
-def find_uncited_blocks(text: str) -> list[str]:
+def find_uncited_blocks(text: str, n_sources: int) -> list[str]:
     """Top-level list items / paragraphs that state something but carry no [S#] tag.
 
     An unindented line starts a new block; indented lines (sub-bullets) belong
@@ -113,6 +114,8 @@ def find_uncited_blocks(text: str) -> list[str]:
             continue
         if not re.search(r"\[S\d+\]", flat):
             out.append(flat)
+    if n_sources == 1 and TAG_RE.search(text):
+        return []
     return out
 
 
@@ -173,7 +176,7 @@ def answer_question(
     text = resp.choices[0].message.content or ""
     valid = {s["tag"] for s in sources}
     cited = _extract_citations(text)
-    uncited = find_uncited_blocks(text)
+    uncited = find_uncited_blocks(text, len(sources))
     invalid = sorted(set(cited) - valid)
     latency = time.perf_counter() - t0
 
