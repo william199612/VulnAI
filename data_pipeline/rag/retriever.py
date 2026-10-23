@@ -4,13 +4,28 @@ from datetime import datetime
 from data_pipeline.models import CVE, CVENews, CVENewsLink
 from data_pipeline.rag.embeddings import embed_texts
 from data_pipeline.shared.db import SessionLocal
-from data_pipeline.schemas.cve import CVE_ID_PATTERN, CVEHit, NewsHit
+from data_pipeline.schemas import CVE_ID_PATTERN, CVEHit, NewsHit
 
 from .config import TOP_K_DEFAULT
 
 
 def _extract_cve_ids(query: str) -> list[str]:
     return sorted({m.upper() for m in CVE_ID_PATTERN.findall(query)})
+
+
+def _cve_hit(row, similarity: float, exact: bool = False) -> CVEHit:
+    return CVEHit(
+        cve_id=row.cve_id,
+        description=row.description,
+        cvss_score=float(row.cvss_score) if row.cvss_score is not None else None,
+        published_date=row.published_date,
+        similarity=similarity,
+        exact_match=exact,
+        cwe=row.cwe,
+        cvss_vector=row.cvss_vector,
+        modified_date=row.modified_date,
+        references=list(row.raw_references or []),
+    )
 
 
 def embed_query(query: str) -> list[float]:
@@ -43,20 +58,7 @@ def retrieve_cves(
         # exact lookup by ID
         if exact_ids:
             for row in session.scalars(select(CVE).where(CVE.cve_id.in_(exact_ids))):
-                hits.append(
-                    CVEHit(
-                        cve_id=row.cve_id,
-                        description=row.description,
-                        cvss_score=(
-                            float(row.cvss_score)
-                            if row.cvss_score is not None
-                            else None
-                        ),
-                        published_date=row.published_date,
-                        similarity=1.0,
-                        exact_match=True,
-                    )
-                )
+                hits.append(_cve_hit(row, similarity=1.0, exact=True))
                 seen.add(row.cve_id)
 
         # similarity search
@@ -71,17 +73,7 @@ def retrieve_cves(
         for row, dist in session.execute(stmt):
             if row.cve_id in seen:
                 continue
-            hits.append(
-                CVEHit(
-                    cve_id=row.cve_id,
-                    description=row.description,
-                    cvss_score=(
-                        float(row.cvss_score) if row.cvss_score is not None else None
-                    ),
-                    published_date=row.published_date,
-                    similarity=1.0 - float(dist),
-                )
-            )
+            hits.append(_cve_hit(row, similarity=1.0 - float(dist)))
 
         return hits[: max(top_k, len(seen))]
 

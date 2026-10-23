@@ -5,7 +5,7 @@ from data_pipeline.shared.db import SessionLocal
 from data_pipeline.shared.logging import get_logger
 
 from data_pipeline.models import CVE, SyncState
-from data_pipeline.schemas.cve import NVDParamsSchema
+from data_pipeline.schemas import NVDParamsSchema
 
 from data_pipeline.nvd_sync.client import fetch_cve_page
 from data_pipeline.nvd_sync.config import *

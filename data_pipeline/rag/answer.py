@@ -2,28 +2,21 @@ import re
 import time
 from datetime import datetime, timedelta, timezone
 from typing import List
-from dataclasses import dataclass
 
-from data_pipeline.rag.config import LLM_MODEL, NEWS_SNIPPET_CHARS, TEMPERATURE
-from data_pipeline.shared.logging import get_logger
-
+from data_pipeline.rag.config import (
+    LLM_MODEL,
+    NEWS_SNIPPET_CHARS,
+    TEMPERATURE,
+    MAX_REFERENCES,
+)
 from data_pipeline.rag.embeddings import get_client
 from data_pipeline.rag.retriever import retrieve
 from data_pipeline.rag.prompt import SYSTEM_PROMPT_VERSION, SYSTEM_PROMPT
 
+from data_pipeline.schemas import RAGAnswer
+from data_pipeline.shared.logging import get_logger
+
 logger = get_logger("rag", "rag_answer.log")
-
-
-@dataclass
-class RAGAnswer:
-    question: str
-    text: str
-    sources: List[str]
-    cited: List[str]
-    invalid_citations: List[str]
-    latency: float
-    prompt_tokens: int
-    completion_tokens: int
 
 
 def _clean(text: str) -> str:
@@ -43,10 +36,18 @@ def build_context(cves, news) -> str:
         tag = f"S{n}"
 
         cvss = cve.cvss_score or "unscored"
-        blocks.append(
-            f'<source id="{tag}" type="cve" cve_id="{cve.cve_id}" cvss="{cvss}" '
-            f'published="{_date(cve.published_date)}">\n{_clean(cve.description)}\n</source>'
+        attrs = (
+            f'id="{tag}" type="cve" cve_id="{cve.cve_id}" cvss="{cvss}" '
+            f'published="{_date(cve.published_date)}" modified="{_date(cve.modified_date)}"'
         )
+        if cve.cwe:
+            attrs += f' cwe="{cve.cwe}"'
+        if cve.cvss_vector:
+            attrs += f' cvss_vector="{cve.cvss_vector}"'
+        body = _clean(cve.description)
+        if cve.references:
+            body += "\nReferences: " + ", ".join(cve.references[:MAX_REFERENCES])
+        blocks.append(f"<source {attrs}>\n{body}\n</source>")
         sources.append(
             {
                 "tag": tag,
@@ -82,6 +83,37 @@ def _extract_citations(text: str) -> List[str]:
     for group in re.findall(r"\[([^\]]*)\]", text):
         tags += re.findall(r"S\d+", group)
     return tags
+
+
+def find_uncited_blocks(text: str) -> list[str]:
+    """Top-level list items / paragraphs that state something but carry no [S#] tag.
+
+    An unindented line starts a new block; indented lines (sub-bullets) belong
+    to the block above, so a tag anywhere in an item covers the whole item.
+    """
+    blocks, cur = [], []
+    for line in text.splitlines():
+        if not line.strip():
+            continue
+        if not line[0].isspace() and cur:
+            blocks.append(cur)
+            cur = []
+        cur.append(line)
+    if cur:
+        blocks.append(cur)
+
+    out = []
+    for b in blocks:
+        flat = " ".join(" ".join(b).split())
+        if (
+            len(flat) < 40
+            or flat.endswith(":")
+            or flat.startswith("The sources do not")
+        ):
+            continue
+        if not re.search(r"\[S\d+\]", flat):
+            out.append(flat)
+    return out
 
 
 def answer_question(
@@ -141,12 +173,13 @@ def answer_question(
     text = resp.choices[0].message.content or ""
     valid = {s["tag"] for s in sources}
     cited = _extract_citations(text)
+    uncited = find_uncited_blocks(text)
     invalid = sorted(set(cited) - valid)
     latency = time.perf_counter() - t0
 
     logger.info(
         f"prompt_version={SYSTEM_PROMPT_VERSION} "
-        f"q={question!r} sources={len(sources)} cited={len(set(cited))} "
+        f"q={question!r} sources={len(sources)} cited={len(set(cited))} uncited={len(uncited)} "
         f"invalid={invalid} latency={latency:.1f}s "
         f"tokens={resp.usage.prompt_tokens}+{resp.usage.completion_tokens}"
     )
@@ -156,6 +189,7 @@ def answer_question(
         sources,
         sorted(set(cited)),
         invalid,
+        uncited,
         latency,
         resp.usage.prompt_tokens,
         resp.usage.completion_tokens,

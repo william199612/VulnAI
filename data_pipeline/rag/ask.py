@@ -21,6 +21,10 @@ def main():
         print(f" {mark} [{s['tag']}] {s['type']:4} {s['id'][:70]}  {s['url']}")
     if a.invalid_citations:
         print(f"\nWARNING: cited tags that do not exist: {a.invalid_citations}")
+    if a.uncited:
+        print(f"WARNING: {len(a.uncited)} item(s) without a citation:")
+        for b in a.uncited:
+            print(f"  - {b[:100]}")
     print(
         f"\n{a.latency:.1f}s, {a.prompt_tokens}+{a.completion_tokens} tokens (* = cited)"
     )

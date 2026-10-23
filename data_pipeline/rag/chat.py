@@ -29,6 +29,10 @@ def main():
             print(f" {mark} [{s['tag']}] {s['type']:4} {s['id'][:60]}  {s['url']}")
         if ans.invalid_citations:
             print(f"WARNING: invalid tags {ans.invalid_citations}")
+        if ans.uncited:
+            print(f"WARNING: {len(ans.uncited)} item(s) without a citation:")
+            for b in ans.uncited:
+                print(f"  - {b[:100]}")
 
 
 if __name__ == "__main__":
