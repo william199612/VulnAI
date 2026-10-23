@@ -85,14 +85,26 @@ def _extract_citations(text: str) -> List[str]:
 
 
 def answer_question(
-    question: str, *, top_k_cves: int = 5, top_k_news: int = 5, days=None, model=None
+    question: str,
+    *,
+    history=None,
+    search_query=None,
+    top_k_cves: int = 5,
+    top_k_news: int = 5,
+    days=None,
+    model=None,
 ) -> RAGAnswer:
     t0 = time.perf_counter()
     published_after = (
         datetime.now(timezone.utc) - timedelta(days=days) if days else None
     )
 
-    result = retrieve(question, top_k_cves, top_k_news, published_after=published_after)
+    result = retrieve(
+        search_query or question,
+        top_k_cves,
+        top_k_news,
+        published_after=published_after,
+    )
     cves, news = result["cves"], result["news"]
 
     if not cves and not news:
@@ -108,19 +120,22 @@ def answer_question(
         )
 
     context, sources = build_context(cves, news)
+    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+    for q, a in history or []:  # earlier turns, tags already resolved
+        messages += [
+            {"role": "user", "content": q},
+            {"role": "assistant", "content": a},
+        ]
+    messages.append(
+        {
+            "role": "user",
+            "content": f"<sources>\n{context}\n</sources>\n\nQuestion: {question}",
+        }
+    )
     resp = get_client().chat.completions.create(
         model=model or LLM_MODEL,
         temperature=TEMPERATURE,
-        messages=[
-            {
-                "role": "system",
-                "content": SYSTEM_PROMPT,
-            },
-            {
-                "role": "user",
-                "content": f"<sources>\n{context}\n</sources>\n\nQuestion: {question}",
-            },
-        ],
+        messages=messages,
     )
 
     text = resp.choices[0].message.content or ""
