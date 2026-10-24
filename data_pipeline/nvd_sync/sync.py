@@ -173,7 +173,7 @@ def run_incremental_sync(max_pages: int | None = None):
 
         now = datetime.now(timezone.utc)  # taken before fetching, so nothing is missed
         done = _sync_range(
-            session, since, now, date_field="last_mod", max_pages=max_pages
+            session, since, now, date_field="lastMod", max_pages=max_pages
         )
         if done:
             _set_last_synced(session, now)
