@@ -14,6 +14,8 @@ from data_pipeline.rag.backfill_embeddings import (
     backfill_news_embeddings,
 )
 
+from data_pipeline.kev_sync.sync import run_kev_sync
+
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 NEWS_DIR = PROJECT_ROOT / "data_pipeline" / "news"
 
@@ -54,6 +56,10 @@ scheduler.add_job(reconcile_pending_links, "interval", minutes=35, id="reconcile
 
 scheduler.add_job(backfill_cve_embeddings, "interval", hours=6, id="embed_cve")
 scheduler.add_job(backfill_news_embeddings, "interval", minutes=35, id="embed_news")
+
+scheduler.add_job(
+    run_kev_sync, "cron", hour=3, minute=30, id="kev_sync", replace_existing=True
+)
 
 if __name__ == "__main__":
     scheduler.start()

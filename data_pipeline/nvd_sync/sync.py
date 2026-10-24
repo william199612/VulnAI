@@ -9,8 +9,8 @@ from data_pipeline.schemas import NVDParamsSchema
 
 from data_pipeline.nvd_sync.client import fetch_cve_page
 from data_pipeline.nvd_sync.config import *
+from data_pipeline.constants import TIMEOUT, MAX_RETRIES
 
-MAX_WINDOW_DAYS = 119
 logger = get_logger("nvd_sync", "nvd_sync.log")
 
 
