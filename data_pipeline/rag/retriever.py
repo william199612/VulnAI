@@ -25,6 +25,7 @@ def _cve_hit(row, similarity: float, exact: bool = False) -> CVEHit:
         cvss_vector=row.cvss_vector,
         modified_date=row.modified_date,
         references=list(row.raw_references or []),
+        is_kev=row.is_kev,
     )
 
 

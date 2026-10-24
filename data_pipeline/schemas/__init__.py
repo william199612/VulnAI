@@ -36,6 +36,7 @@ class CVEHit:
     cvss_vector: str | None = None
     modified_date: datetime | None = None
     references: list[str] = field(default_factory=list)
+    is_kev: bool | None = None
 
 
 @dataclass

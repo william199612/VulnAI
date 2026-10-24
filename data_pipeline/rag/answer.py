@@ -38,7 +38,7 @@ def build_context(cves, news) -> str:
 
         cvss = cve.cvss_score or "unscored"
         attrs = (
-            f'id="{tag}" type="cve" cve_id="{cve.cve_id}" cvss="{cvss}" '
+            f'id="{tag}" type="cve" cve_id="{cve.cve_id}" cvss="{cvss}" kev="{cve.is_kev}" '
             f'published="{_date(cve.published_date)}" modified="{_date(cve.modified_date)}"'
         )
         if cve.cwe:
