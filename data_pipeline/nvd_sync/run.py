@@ -1,6 +1,10 @@
 import argparse
 
-from data_pipeline.nvd_sync.sync import run_full_sync, run_incremental_sync, run_seed_sync
+from data_pipeline.nvd_sync.sync import (
+    run_full_sync,
+    run_incremental_sync,
+    run_seed_sync,
+)
 
 
 def main():
@@ -12,7 +16,7 @@ def main():
     )
     parser.add_argument(
         "--years-back",
-        type=int,
+        type=float,
         default=1,
         help="For 'seed' mode: how many years of history to pull (default: 1)",
     )
@@ -32,11 +36,15 @@ def main():
     args = parser.parse_args()
 
     if args.mode == "seed":
-        run_seed_sync(years_back=args.years_back, results_per_page=args.results_per_page)
+        run_seed_sync(
+            years_back=args.years_back,
+            results_per_page=args.results_per_page,
+            max_pages=args.max_pages,
+        )
     elif args.mode == "full":
         run_full_sync(results_per_page=args.results_per_page, max_pages=args.max_pages)
     elif args.mode == "incremental":
-        run_incremental_sync()
+        run_incremental_sync(max_pages=args.max_pages)
 
 
 if __name__ == "__main__":

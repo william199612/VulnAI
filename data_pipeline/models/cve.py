@@ -3,6 +3,7 @@ from datetime import datetime
 
 from sqlalchemy import ARRAY, DateTime, JSON, Numeric, String, func
 from sqlalchemy.orm import Mapped, mapped_column
+from pgvector.sqlalchemy import Vector
 
 from data_pipeline.shared.db import Base
 
@@ -24,3 +25,4 @@ class CVE(Base):
         DateTime(timezone=True),
         server_default=func.now(),
     )
+    embedding: Mapped[list[float] | None] = mapped_column(Vector(1536))

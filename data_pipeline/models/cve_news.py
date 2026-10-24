@@ -1,5 +1,7 @@
 from sqlalchemy import Integer, String, DateTime, func
 from sqlalchemy.orm import Mapped, mapped_column
+from pgvector.sqlalchemy import Vector
+
 from data_pipeline.shared.db import Base
 
 
@@ -21,3 +23,4 @@ class CVENews(Base):
         DateTime(timezone=True),
         server_default=func.now(),
     )
+    embedding: Mapped[list[float] | None] = mapped_column(Vector(1536))
