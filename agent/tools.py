@@ -33,11 +33,21 @@ from data_pipeline.models import CVE, CVENews, CVENewsLink
 from data_pipeline.rag.retriever import embed_query, retrieve_news
 from data_pipeline.shared.db import SessionLocal
 from data_pipeline.shared.logging import get_logger
-from data_pipeline.constants import *
 
 logger = get_logger("agent.tools", "agent_tools.log")
 
+CVE_PATTERN = re.compile(r"^CVE-\d{4}-\d{4,}$")
 SORT_OPTIONS = ("relevance", "cvss", "date")
+
+MAX_LIMIT = 10
+SEARCH_DESC_CHARS = 400
+NEWS_SNIPPET_CHARS = 300
+MAX_REFERENCES = 5
+MAX_LINKED_NEWS = 3
+# When sorting by CVSS/date, rank within the N most relevant matches. Sorting
+# the whole table by CVSS would return high-scoring but unrelated CVEs.
+POOL_FACTOR = 10
+MIN_POOL = 50
 
 
 class ToolInputError(ValueError):
