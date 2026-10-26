@@ -179,7 +179,7 @@ def run_agent(
     cited = {_norm(m) for m in CITE_RE.findall(final_text)}
     res.cited = sorted(cited)
     res.invalid_citations = sorted(cited - set(res.sources))
-    res.uncited = _find_uncited(final_text)
+    res.uncited = _find_uncited(final_text) if res.sources else []
     res.latency_s = time.perf_counter() - t0
 
     logger.info(
