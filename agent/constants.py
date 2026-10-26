@@ -10,6 +10,7 @@ MAX_STEPS = 6
 
 CITE_RE = re.compile(r"\[((?:CVE-\d{4}-\d{4,})|(?:news:\d+))\]", re.I)
 ID_RE = re.compile(r"^(?:CVE-\d{4}-\d{4,}|news:\d+)$", re.I)
+BRACKET_RE = re.compile(r"\[([^\]\n]+)\](?!\()")
 
 
 @dataclass

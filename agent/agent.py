@@ -19,17 +19,20 @@ from __future__ import annotations
 
 import json
 import logging
-import os
-import re
 import sys
 import time
-
-
 from openai import OpenAI
 
 from agent.tools import TOOL_SPECS, run_tool
 from agent.prompt import AGENT_PROMPT_VERSION, SYSTEM_PROMPT
-from agent.constants import DEFAULT_MODEL, MAX_STEPS, CITE_RE, ID_RE, AgentResult
+from agent.constants import (
+    DEFAULT_MODEL,
+    MAX_STEPS,
+    CITE_RE,
+    ID_RE,
+    BRACKET_RE,
+    AgentResult,
+)
 
 logger = logging.getLogger("agent")
 
@@ -64,7 +67,13 @@ def _find_uncited(text: str) -> list[str]:
     out = []
     for line in text.splitlines():
         s = line.strip()
-        if len(s) < 40 or s.startswith("#") or s.endswith(":"):
+        low = s.lower()
+        if (
+            len(s) < 40
+            or s.startswith("#")
+            or s.endswith(":")
+            or low.startswith(("not verified", "the sources do not contain"))
+        ):
             continue
         if not CITE_RE.search(s):
             out.append(s)
@@ -79,7 +88,7 @@ def _summarize(result_json: str) -> tuple[int | None, str | None]:
     if isinstance(data, dict):
         if data.get("error"):
             return None, data["error"]
-        return data.get("count"), None
+        return data.get("count", 1 if data.get("id") else None), None
     return None, None
 
 
@@ -181,6 +190,9 @@ def run_agent(
     res.invalid_citations = sorted(cited - set(res.sources))
     res.uncited = _find_uncited(final_text) if res.sources else []
     res.latency_s = time.perf_counter() - t0
+    cited_raw = BRACKET_RE.findall(final_text)
+    bad = {t for t in cited_raw if not ID_RE.match(t.strip())}
+    res.invalid_citations = sorted((cited - set(res.sources)) | bad)
 
     logger.info(
         f"prompt_version={AGENT_PROMPT_VERSION} q={question!r} steps={len(res.steps)} "

@@ -126,6 +126,25 @@ def _dump(obj) -> str:
 # tool 1: get_cve
 # --------------------------------------------------------------------------
 def get_cve(cve_id: str) -> dict:
+
+    def _priority(row) -> dict:
+        score = _score(row)
+        if row.is_kev:
+            tier, basis = "patch_immediately", ["listed in CISA KEV (known exploited)"]
+            if getattr(row, "kev_ransomware", None):
+                basis.append("used in known ransomware campaigns")
+        elif score is not None and score >= 7.0:
+            tier, basis = "patch_soon", [f"CVSS {score} >= 7.0", "not in CISA KEV"]
+        elif score is None:
+            tier, basis = "review", ["no CVSS score available"]
+        else:
+            tier, basis = "monitor", [f"CVSS {score} < 7.0", "not in CISA KEV"]
+        return {
+            "tier": tier,
+            "basis": basis,
+            "not_considered": ["EPSS", "whether the product is deployed or reachable"],
+        }
+
     cve_id = (cve_id or "").strip().upper()
     if not CVE_PATTERN.match(cve_id):
         raise ToolInputError("cve_id must look like CVE-yyyy-xxxxx")
@@ -153,6 +172,7 @@ def get_cve(cve_id: str) -> dict:
             "cvss": _score(row),
             "cvss_vector": row.cvss_vector,
             "cwe": row.cwe,
+            "priority": _priority(row),
             "published": _day(row.published_date),
             "modified": _day(row.modified_date),
             "references": list(row.raw_references or [])[:MAX_REFERENCES],
@@ -186,6 +206,7 @@ def search_cve(
     kev_only=False,
     sort_by: str = "relevance",
     limit=5,
+    must_contain=None,
 ) -> dict:
     days = _as_int(days, "days", 1, 3650)
     limit = _as_int(limit, "limit", 1, MAX_LIMIT) or 5
@@ -193,6 +214,7 @@ def search_cve(
     kev_only = _as_bool(kev_only, "kev_only")
     query = (query or "").strip()
     sort_by = (sort_by or "relevance").strip().lower()
+    must_contain = (must_contain or "").strip() or None
 
     if sort_by not in SORT_OPTIONS:
         raise ToolInputError(f"sort_by must be one of {list(SORT_OPTIONS)}")
@@ -206,6 +228,8 @@ def search_cve(
         conds.append(CVE.cvss_score >= min_cvss)
     if kev_only:
         conds.append(CVE.is_kev.is_(True))
+    if must_contain:
+        conds.append(CVE.description.icontains(must_contain, autoescape=True))
 
     note = None
     with SessionLocal() as session:
@@ -301,6 +325,12 @@ def search_news(
         }
         for h in hits[:limit]
     ]
+    out = {"count": len(results), "results": results}
+    if ids and not results:
+        out["note"] = (
+            "No news articles are linked to this CVE in the local database. "
+            "This does not prove the CVE is not being exploited."
+        )
     return {"count": len(results), "results": results}
 
 
@@ -403,6 +433,10 @@ TOOL_SPECS = [
                         "type": "integer",
                         "description": f"1-{MAX_LIMIT}, default 5.",
                     },
+                    "must_contain": {
+                        "type": "string",
+                        "description": "Exact text the description must contain, e.g. 'Apache HTTP Server'. Use it for 'same product' questions; semantic search alone mixes products.",
+                    },
                 },
                 "required": [],
             },
@@ -455,13 +489,22 @@ def run_tool(name: str, arguments: str | dict | None) -> str:
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     if len(sys.argv) < 2:
-        sys.exit("usage: python -m agent.tools <tool_name> ['<json args>']")
+        sys.exit(
+            "usage: python -m agent.tools <tool> [key=value ...]  "
+            "e.g. search_cve query=apache days=30 sort_by=cvss"
+        )
+    kwargs = {}
+    for pair in sys.argv[2:]:
+        key, _, value = pair.partition("=")
+        low = value.lower()
+        if low in ("true", "false"):
+            kwargs[key] = low == "true"
+        elif value.lstrip("-").isdigit():
+            kwargs[key] = int(value)
+        else:
+            kwargs[key] = value
     print(
         json.dumps(
-            json.loads(
-                run_tool(sys.argv[1], sys.argv[2] if len(sys.argv) > 2 else "{}")
-            ),
-            indent=2,
-            ensure_ascii=False,
+            json.loads(run_tool(sys.argv[1], kwargs)), indent=2, ensure_ascii=False
         )
     )
