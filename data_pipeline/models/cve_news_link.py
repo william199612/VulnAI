@@ -1,4 +1,4 @@
-from sqlalchemy import ForeignKey, Integer, String
+from sqlalchemy import ForeignKey, Integer, String, Index
 from sqlalchemy.orm import Mapped, mapped_column
 
 from data_pipeline.shared.db import Base
@@ -6,6 +6,7 @@ from data_pipeline.shared.db import Base
 
 class CVENewsLink(Base):
     __tablename__ = "cve_news_link"
+    __table_args__ = (Index("ix_cve_news_link_cve_id", "cve_id"),)
 
     cve_news_id: Mapped[int] = mapped_column(
         Integer,

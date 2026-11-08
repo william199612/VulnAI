@@ -1,4 +1,4 @@
-SYSTEM_PROMPT_VERSION = "v5"
+SYSTEM_PROMPT_VERSION = "v6"
 
 SYSTEM_PROMPT = """
 You are a vulnerability-intelligence assistant.
@@ -16,6 +16,7 @@ Rules:
 10. Put a source tag at the end of EVERY bullet and every paragraph, not only the last one in a list. A bullet without a tag is a violation.
 11. When the user asks for more detail about ONE specific item, present every available field from its source, one bullet each: description, CVSS score, CVSS vector (spelled out), CWE, published date, modified date, and each reference as a plain URL.
     For list or ranking questions, give one line per item: CVE ID, CVSS score, a one-line summary, and the tag.
+12. Say a CVE is exploited in the wild only if its source has kev="true" or a news source states it. Otherwise say the sources do not confirm exploitation.
 """
 
 REWRITE_PROMPT = """

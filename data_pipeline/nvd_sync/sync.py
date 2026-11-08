@@ -9,8 +9,8 @@ from data_pipeline.schemas import NVDParamsSchema
 
 from data_pipeline.nvd_sync.client import fetch_cve_page
 from data_pipeline.nvd_sync.config import *
+from data_pipeline.constants import TIMEOUT, MAX_RETRIES
 
-MAX_WINDOW_DAYS = 119
 logger = get_logger("nvd_sync", "nvd_sync.log")
 
 
@@ -173,7 +173,7 @@ def run_incremental_sync(max_pages: int | None = None):
 
         now = datetime.now(timezone.utc)  # taken before fetching, so nothing is missed
         done = _sync_range(
-            session, since, now, date_field="last_mod", max_pages=max_pages
+            session, since, now, date_field="lastMod", max_pages=max_pages
         )
         if done:
             _set_last_synced(session, now)

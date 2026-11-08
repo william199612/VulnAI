@@ -1,7 +1,8 @@
 from decimal import Decimal
 from datetime import datetime
 
-from sqlalchemy import ARRAY, DateTime, JSON, Numeric, String, func
+import sqlalchemy as sa
+from sqlalchemy import ARRAY, DateTime, JSON, Numeric, String, func, Boolean
 from sqlalchemy.orm import Mapped, mapped_column
 from pgvector.sqlalchemy import Vector
 
@@ -26,3 +27,9 @@ class CVE(Base):
         server_default=func.now(),
     )
     embedding: Mapped[list[float] | None] = mapped_column(Vector(1536))
+
+    is_kev: Mapped[bool] = mapped_column(
+        Boolean, server_default=sa.false(), default=False
+    )
+    kev_date_added: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    kev_ransomware: Mapped[bool | None] = mapped_column(Boolean)

@@ -1,7 +1,7 @@
 import time
 import requests
 
-from data_pipeline.nvd_sync.config import MAX_RETRIES, TIMEOUT
+from data_pipeline.constants import MAX_RETRIES, TIMEOUT
 from data_pipeline.shared.logging import get_logger
 
 logger = get_logger("nvd_sync", "nvd_sync.log")
