@@ -23,7 +23,7 @@ import sys
 import time
 from openai import OpenAI
 
-from agent.tools import TOOL_SPECS, run_tool
+from agent.tools import TOOL_SPECS, run_tool, NOT_VERIFIED_LINE
 from agent.prompt import AGENT_PROMPT_VERSION, SYSTEM_PROMPT
 from agent.constants import (
     DEFAULT_MODEL,
@@ -35,6 +35,8 @@ from agent.constants import (
 )
 
 logger = logging.getLogger("agent")
+
+TIERS = ("patch immediately", "patch soon", "monitor", "review")
 
 
 def _collect_sources(result: object, out: dict[str, str]) -> None:
@@ -90,6 +92,11 @@ def _summarize(result_json: str) -> tuple[int | None, str | None]:
             return None, data["error"]
         return data.get("count", 1 if data.get("id") else None), None
     return None, None
+
+
+def _has_tier(text: str) -> bool:
+    low = text.lower().replace("_", " ")
+    return any(t in low for t in TIERS)
 
 
 # --------------------------------------------------------------------------
@@ -183,6 +190,14 @@ def run_agent(
             messages.append(
                 {"role": "tool", "tool_call_id": call.id, "content": result_json}
             )
+
+    got_record = any(s["tool"] == "get_cve" and not s["error"] for s in res.steps)
+    if (
+        got_record
+        and _has_tier(final_text)
+        and "not verified" not in final_text.lower()
+    ):
+        final_text += "\n\n" + NOT_VERIFIED_LINE
 
     res.text = final_text
     cited = {_norm(m) for m in CITE_RE.findall(final_text)}

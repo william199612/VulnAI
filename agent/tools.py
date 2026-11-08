@@ -49,6 +49,9 @@ MAX_LINKED_NEWS = 3
 POOL_FACTOR = 10
 MIN_POOL = 50
 
+NOT_CONSIDERED = ["EPSS", "whether the product is deployed or reachable"]
+NOT_VERIFIED_LINE = "Not verified: " + ", ".join(NOT_CONSIDERED) + "."
+
 
 class ToolInputError(ValueError):
     """The model passed arguments the tool cannot use."""
@@ -142,7 +145,7 @@ def get_cve(cve_id: str) -> dict:
         return {
             "tier": tier,
             "basis": basis,
-            "not_considered": ["EPSS", "whether the product is deployed or reachable"],
+            "not_considered": NOT_CONSIDERED,
         }
 
     cve_id = (cve_id or "").strip().upper()
