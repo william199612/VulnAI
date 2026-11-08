@@ -31,12 +31,12 @@ from agent.constants import (
     CITE_RE,
     ID_RE,
     BRACKET_RE,
+    CITATION_LIKE_RE,
+    TIERS,
     AgentResult,
 )
 
 logger = logging.getLogger("agent")
-
-TIERS = ("patch immediately", "patch soon", "monitor", "review")
 
 
 def _collect_sources(result: object, out: dict[str, str]) -> None:
@@ -192,11 +192,12 @@ def run_agent(
             )
 
     got_record = any(s["tool"] == "get_cve" and not s["error"] for s in res.steps)
-    if (
-        got_record
-        and _has_tier(final_text)
-        and "not verified" not in final_text.lower()
-    ):
+    if got_record and _has_tier(final_text):
+        final_text = "\n".join(
+            l
+            for l in final_text.splitlines()
+            if not l.strip().lstrip("-*• ").lower().startswith("not verified")
+        ).rstrip()
         final_text += "\n\n" + NOT_VERIFIED_LINE
 
     res.text = final_text
@@ -205,8 +206,11 @@ def run_agent(
     res.invalid_citations = sorted(cited - set(res.sources))
     res.uncited = _find_uncited(final_text) if res.sources else []
     res.latency_s = time.perf_counter() - t0
-    cited_raw = BRACKET_RE.findall(final_text)
-    bad = {t for t in cited_raw if not ID_RE.match(t.strip())}
+    bad = {
+        t.strip()
+        for t in BRACKET_RE.findall(final_text)
+        if CITATION_LIKE_RE.match(t.strip()) and not ID_RE.match(t.strip())
+    }
     res.invalid_citations = sorted((cited - set(res.sources)) | bad)
 
     logger.info(

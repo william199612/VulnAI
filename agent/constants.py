@@ -8,9 +8,15 @@ load_dotenv()
 DEFAULT_MODEL = os.getenv("LLM_MODEL", "gpt-4o-mini")
 MAX_STEPS = 6
 
+# [CVE-2024-12345], [news:123]
 CITE_RE = re.compile(r"\[((?:CVE-\d{4}-\d{4,})|(?:news:\d+))\]", re.I)
+# CVE-2024-12345, news:123
 ID_RE = re.compile(r"^(?:CVE-\d{4}-\d{4,}|news:\d+)$", re.I)
+# [CVE-2024-12345], [news:123] -> anything with square brackets that is not citation (not [xxx](yyy))
 BRACKET_RE = re.compile(r"\[([^\]\n]+)\](?!\()")
+CITATION_LIKE_RE = re.compile(r"^[\w:.\-]+$")
+
+TIERS = ("patch immediately", "patch soon", "monitor", "review")
 
 
 @dataclass
